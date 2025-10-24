@@ -7,12 +7,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/kartFr/Asset-Reuploader/internal/app/assets"
-	"github.com/kartFr/Asset-Reuploader/internal/app/request"
-	"github.com/kartFr/Asset-Reuploader/internal/app/response"
-	"github.com/kartFr/Asset-Reuploader/internal/color"
-	"github.com/kartFr/Asset-Reuploader/internal/files"
-	"github.com/kartFr/Asset-Reuploader/internal/roblox"
+	"github.com/111222Bomba/Asset-Reuploader/internal/app/assets"
+	"github.com/111222Bomba/Asset-Reuploader/internal/app/request"
+	"github.com/111222Bomba/Asset-Reuploader/internal/app/response"
+	"github.com/111222Bomba/Asset-Reuploader/internal/color"
+	"github.com/111222Bomba/Asset-Reuploader/internal/files"
+	"github.com/111222Bomba/Asset-Reuploader/internal/roblox"
 )
 
 var CompatiblePluginVersion = ""
@@ -47,12 +47,24 @@ func serve(c *roblox.Client) error {
 	http.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		if resp.Len() == 0 && !busy {
-			w.Write([]byte("done"))
+			if !finished {
+				finished = true
+				busy = false
+				exportJSON = false
+
+				resp.Clear()
+				respHistory = make([]response.ResponseItem, 0)
+				fmt.Fprint(w, "done")
+				fmt.Println("Finished reuploading. (you can rerun without restarting)")
+			}
 			return
 		}
 
-		// HATA DÜZELTME 1: Orijinal fonksiyon adı (Send) kullanıldı
-		resp.Send(w) 
+		if err := resp.EncodeJSON(json.NewEncoder(w)); err != nil {
+			log.Fatal(err)
+		} else {
+			resp.Clear()
+		}
 	})
 
 	http.HandleFunc("POST /reupload", func(w http.ResponseWriter, r *http.Request) {
@@ -72,10 +84,10 @@ func serve(c *roblox.Client) error {
 			w.WriteHeader(http.StatusConflict)
 			return
 		}
-        
-        // KRİTİK DÜZELTME: Sound kısıtlaması kaldırıldı!
-		if req.AssetType == "Mesh" { 
-			w.WriteHeader(http.StatusUnauthorized) 
+
+		// KRİTİK DÜZELTME: Sadece Mesh kısıtlaması bırakıldı, Sound kaldırıldı.
+		if req.AssetType == "Mesh" {
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
@@ -110,9 +122,9 @@ func serve(c *roblox.Client) error {
 
 			duration := time.Since(start)
 			fmt.Printf("Reuploading took %d hours, %d minutes, %d seconds.\n", duration/time.Hour, (duration/time.Minute)%60, (duration/time.Second)%60)
-			
-			// HATA DÜZELTME 2: Orijinal fonksiyon adı (SendDone) kullanıldı
-			resp.SendDone() 
+
+			// Orijinal fonksiyon adı (SendDone) kullanıldı
+			resp.SendDone()
 			finished = true
 		}()
 	})

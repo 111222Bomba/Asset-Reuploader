@@ -4,18 +4,22 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/kartFr/Asset-Reuploader/internal/app/assets/animation"
-	"github.com/kartFr/Asset-Reuploader/internal/app/assets/shared/clientutils"
-	"github.com/kartFr/Asset-Reuploader/internal/app/assets/shared/permissions"
-	"github.com/kartFr/Asset-Reuploader/internal/app/context"
-	"github.com/kartFr/Asset-Reuploader/internal/app/request"
-	"github.com/kartFr/Asset-Reuploader/internal/app/response"
-	"github.com/kartFr/Asset-Reuploader/internal/console"
-	"github.com/kartFr/Asset-Reuploader/internal/roblox"
+	"github.com/111222Bomba/Asset-Reuploader/internal/app/assets/animation"
+    // YENİ IMPORT: Sound klasörünü buraya ekliyoruz
+	"github.com/111222Bomba/Asset-Reuploader/internal/app/assets/sound" 
+	"github.com/111222Bomba/Asset-Reuploader/internal/app/assets/shared/clientutils"
+	"github.com/111222Bomba/Asset-Reuploader/internal/app/assets/shared/permissions"
+	"github.com/111222Bomba/Asset-Reuploader/internal/app/context"
+	"github.com/111222Bomba/Asset-Reuploader/internal/app/request"
+	"github.com/111222Bomba/Asset-Reuploader/internal/app/response"
+	"github.com/111222Bomba/Asset-Reuploader/internal/console"
+	"github.com/111222Bomba/Asset-Reuploader/internal/roblox"
 )
 
+// BURADA Sound modülünü assetModules haritasına ekliyoruz
 var assetModules = map[string]func(ctx *context.Context, r *request.Request){
 	"Animation": animation.Reupload,
+	"Sound": sound.Reupload, // KRİTİK DÜZELTME: Sound modülü eklendi.
 }
 
 func NewReuploadHandlerWithType(assetType string, c *roblox.Client, r *request.RawRequest, resp *response.Response) (func() error, error) {

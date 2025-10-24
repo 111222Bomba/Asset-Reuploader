@@ -1,85 +1,121 @@
-package roblox
+package sound
 
 import (
-	"errors"
-	"io" // <-- KRİTİK: io import edildi
+	"fmt"
 	"net/http"
-	"strings"
 	"sync"
-	"time"
+	"sync/atomic"
+
+	"github.com/111222Bomba/Asset-Reuploader/internal/app/assets/shared/assetutils"
+	"github.com/111222Bomba/Asset-Reuploader/internal/app/assets/shared/clientutils"
+	"github.com/111222Bomba/Asset-Reuploader/internal/app/assets/shared/uploaderror"
+	"github.com/111222Bomba/Asset-Reuploader/internal/app/context"
+	"github.com/111222Bomba/Asset-Reuploader/internal/app/request"
+	"github.com/111222Bomba/Asset-Reuploader/internal/app/response"
+	"github.com/111222Bomba/Asset-Reuploader/internal/retry"
 )
 
-const cookieWarning = "WARNING:-DO-NOT-SHARE-THIS.--Sharing-this-will-allow-someone-to-log-in-as-you-and-to-steal-your-ROBUX-and-items."
+const assetTypeID int32 = 3 // Sound asset tipi
 
-var (
-	ErrNoWarning = errors.New("include the .ROBLOSECURITY warning")
-)
+func Reupload(ctx *context.Context, r *request.Request) {
+	client := ctx.Client
+	logger := ctx.Logger
+	pauseController := ctx.PauseController
+	resp := ctx.Response
 
-type Client struct {
-	Cookie   string
-	UserInfo UserInfo
+	idsToUpload := len(r.IDs)
+	var idsProcessed atomic.Int32
 
-	httpClient *http.Client
+	filter := assetutils.NewFilter(ctx, r, assetTypeID)
+	
+	logger.Println("Reuploading sounds...")
 
-	token      string
-	tokenMutex sync.RWMutex
-}
-
-func NewClient(cookie string) (*Client, error) {
-	c := &Client{
-		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
-		},
+	newBatchError := func(amt int, m string, err any) {
+		end := int(idsProcessed.Add(int32(amt)))
+		start := end - amt
+		logger.Error(uploaderror.NewBatch(start, end, idsToUpload, m, err))
 	}
 
-	if err := c.SetCookie(cookie); err != nil {
-		return c, err
+	newUploadError := func(m string, assetInfo *assetutils.AssetInfo, err any) {
+		newValue := idsProcessed.Add(1)
+		logger.Error(uploaderror.New(int(newValue), idsToUpload, m, assetInfo, err))
 	}
 
-	return c, nil
-}
+	uploadAsset := func(assetInfo *assetutils.AssetInfo) {
+		oldName := assetInfo.Name
 
-func (c *Client) SetCookie(cookie string) error {
-	c.Cookie = strings.TrimSpace(cookie)
+		// 1. Asset'in indirileceği URL'i bul
+		location, err := client.GetAssetLocation(assetInfo.ID, assetTypeID)
+		if err != nil {
+			newUploadError("Failed to get asset location", assetInfo, err)
+			return
+		}
 
-	if !strings.Contains(cookie, cookieWarning) {
-		return ErrNoWarning
+		// 2. Sound dosyasını indir
+		assetDataResp, err := http.Get(location)
+		if err != nil {
+			newUploadError("Failed to download sound file", assetInfo, err)
+			return
+		}
+		defer assetDataResp.Body.Close()
+
+		// 3. Sound dosyasını Roblox'a yükle
+		res := <-retry.DoTask(
+			retry.NewOptions(retry.Tries(3)),
+			func(try int) (int64, error) {
+				pauseController.WaitIfPaused()
+				if try > 1 {
+					// Buraya Rate Limit bekleme mekanizması eklenebilir.
+				}
+				
+				id, err := client.ReuploadSound(assetDataResp.Body, r.PlaceID)
+				if err != nil {
+					if err.Error() == "cookie expired" { 
+						clientutils.GetNewCookie(ctx, r, "cookie expired")
+					}
+					return 0, &retry.ContinueRetry{Err: err}
+				}
+				return id, nil
+			},
+		)
+
+		if err := res.Error; err != nil {
+			assetInfo.Name = oldName
+			newUploadError("Failed to upload", assetInfo, err)
+			return
+		}
+
+		newID := res.Result
+		newValue := idsProcessed.Add(1)
+		logger.Success(uploaderror.New(int(newValue), idsToUpload, "", assetInfo, newID))
+		resp.AddItem(response.ResponseItem{
+			OldID: assetInfo.ID,
+			NewID: newID,
+		})
 	}
 
-	userInfo, err := authenticate(c, cookie)
-	if err != nil {
-		return err
+	// Asset ID'lerini çekme ve işleme kısmı (Animasyonlardaki gibi)
+	var wg sync.WaitGroup
+	tasks := assetutils.GetAssetsInfoInChunks(ctx, r)
+	wg.Add(len(tasks))
+	
+	for _, task := range tasks {
+		go func(task <-chan assetutils.AssetsInfoResult) {
+			defer wg.Done()
+			res := <-task
+			
+			if err := res.Error; err != nil {
+				newBatchError(len(res.Result), "Failed to get assets info", err)
+				return
+			}
+			
+			filteredInfo := filter(res.Result)
+			
+			for _, assetInfo := range filteredInfo {
+				uploadAsset(assetInfo)
+			}
+		}(task)
 	}
-
-	c.UserInfo = userInfo
-	c.Cookie = cookie
-	return nil
-}
-
-func (c *Client) GetToken() string {
-	c.tokenMutex.RLock()
-	defer c.tokenMutex.RUnlock()
-	return c.token
-}
-
-func (c *Client) SetToken(s string) {
-	c.tokenMutex.Lock()
-	c.token = s
-	c.tokenMutex.Unlock()
-}
-
-func (c *Client) DoRequest(req *http.Request) (*http.Response, error) {
-	return c.httpClient.Do(req)
-}
-
-// KRİTİK DÜZELTME: Sound modülünün Asset indirme konumunu bulması için gerekli
-func (c *Client) GetAssetLocation(id int64, assetTypeID int32) (string, error) {
-    // BURAYA ORİJİNAL KODUNUZUN GetAssetLocation İÇERİĞİNİ KOYUN
-    return "", nil 
-}
-
-// KRİTİK DÜZELTME: Sound dosyasını yüklemek için gerekli
-func (c *Client) ReuploadSound(body io.Reader, placeID int64) (int64, error) {
-    // BURAYA ORİJİNAL KODUNUZUN ReuploadSound İÇERİĞİNİ KOYUN
-    return 0, nil
+	
+	wg.Wait()
 }

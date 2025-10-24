@@ -26,8 +26,6 @@ func Reupload(ctx *context.Context, r *request.Request) {
 	idsToUpload := len(r.IDs)
 	var idsProcessed atomic.Int32
 
-	// filter'ın, develop.AssetInfo tipinde bir slice (dilim) alması gerekir
-	// (Bu tip, develop.GetAssetsInfoResponse'un kendisi olabilir.)
 	filter := assetutils.NewFilter(ctx, r, assetTypeID)
 	
 	logger.Println("Reuploading sounds...")
@@ -62,9 +60,8 @@ func Reupload(ctx *context.Context, r *request.Request) {
 		defer assetDataResp.Body.Close()
 
 		// 3. Sound dosyasını Roblox'a yükle
-		// Hata düzeltmesi: retry.DoTask'ın var olduğunu varsayıyoruz. 
-        // Eğer derleme hala burada hata veriyorsa, internal/retry paketinizde bir hata vardır.
-		res := <-retry.DoTask( 
+		// KRİTİK DÜZELTME 1: retry.DoTask yerine retry.Do kullanıldı
+		res := <-retry.Do( 
 			retry.NewOptions(retry.Tries(3)),
 			func(try int) (int64, error) {
 				pauseController.WaitIfPaused()
@@ -98,7 +95,7 @@ func Reupload(ctx *context.Context, r *request.Request) {
 		})
 	}
 
-	// Asset ID'lerini çekme ve işleme kısmı (Animasyonlardaki gibi)
+	// Asset ID'lerini çekme ve işleme kısmı
 	var wg sync.WaitGroup
 	tasks := assetutils.GetAssetsInfoInChunks(ctx, r)
 	wg.Add(len(tasks))
@@ -109,13 +106,13 @@ func Reupload(ctx *context.Context, r *request.Request) {
 			res := <-task
 			
 			if err := res.Error; err != nil {
-				// KRİTİK DÜZELTME: .Assets kaldırıldı. res.Result doğrudan Asset listesi olmalı.
-				newBatchError(len(res.Result), "Failed to get assets info", err)
+				// KRİTİK DÜZELTME 2: Asset listesine .Data alanı üzerinden erişiliyor.
+				newBatchError(len(res.Result.Data), "Failed to get assets info", err) 
 				return
 			}
 			
-			// KRİTİK DÜZELTME: .Assets kaldırıldı.
-			filteredInfo := filter(res.Result)
+			// KRİTİK DÜZELTME 3: Asset listesini filtreye geçirmek için .Data kullanıldı
+			filteredInfo := filter(res.Result.Data)
 			
 			for _, assetInfo := range filteredInfo {
 				uploadAsset(assetInfo)

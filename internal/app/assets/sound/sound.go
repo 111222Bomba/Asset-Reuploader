@@ -1,7 +1,6 @@
 package sound
 
 import (
-	"fmt"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -13,6 +12,7 @@ import (
 	"github.com/111222Bomba/Asset-Reuploader/internal/app/request"
 	"github.com/111222Bomba/Asset-Reuploader/internal/app/response"
 	"github.com/111222Bomba/Asset-Reuploader/internal/retry"
+	"github.com/111222Bomba/Asset-Reuploader/internal/roblox/develop" // KRİTİK DÜZELTME: AssetInfo struct'ı için gerekli
 )
 
 const assetTypeID int32 = 3 // Sound asset tipi
@@ -36,12 +36,14 @@ func Reupload(ctx *context.Context, r *request.Request) {
 		logger.Error(uploaderror.NewBatch(start, end, idsToUpload, m, err))
 	}
 
-	newUploadError := func(m string, assetInfo *assetutils.AssetInfo, err any) {
+	// HATA DÜZELTME: develop.AssetInfo kullanıldı
+	newUploadError := func(m string, assetInfo *develop.AssetInfo, err any) {
 		newValue := idsProcessed.Add(1)
 		logger.Error(uploaderror.New(int(newValue), idsToUpload, m, assetInfo, err))
 	}
 
-	uploadAsset := func(assetInfo *assetutils.AssetInfo) {
+	// HATA DÜZELTME: develop.AssetInfo kullanıldı
+	uploadAsset := func(assetInfo *develop.AssetInfo) {
 		oldName := assetInfo.Name
 
 		// 1. Asset'in indirileceği URL'i bul
@@ -60,7 +62,7 @@ func Reupload(ctx *context.Context, r *request.Request) {
 		defer assetDataResp.Body.Close()
 
 		// 3. Sound dosyasını Roblox'a yükle
-		res := <-retry.DoTask(
+		res := <-retry.DoTask( 
 			retry.NewOptions(retry.Tries(3)),
 			func(try int) (int64, error) {
 				pauseController.WaitIfPaused()
@@ -105,11 +107,13 @@ func Reupload(ctx *context.Context, r *request.Request) {
 			res := <-task
 			
 			if err := res.Error; err != nil {
-				newBatchError(len(res.Result), "Failed to get assets info", err)
+				// HATA DÜZELTME: len(res.Result.Assets) kullanıldı
+				newBatchError(len(res.Result.Assets), "Failed to get assets info", err)
 				return
 			}
 			
-			filteredInfo := filter(res.Result)
+			// HATA DÜZELTME: res.Result.Assets'teki AssetInfo slice'ı filtrele
+			filteredInfo := filter(res.Result.Assets)
 			
 			for _, assetInfo := range filteredInfo {
 				uploadAsset(assetInfo)

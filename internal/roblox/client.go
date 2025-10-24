@@ -2,6 +2,7 @@ package roblox
 
 import (
 	"errors"
+	"io" // <-- KRİTİK: io import edildi
 	"net/http"
 	"strings"
 	"sync"
@@ -69,4 +70,16 @@ func (c *Client) SetToken(s string) {
 
 func (c *Client) DoRequest(req *http.Request) (*http.Response, error) {
 	return c.httpClient.Do(req)
+}
+
+// KRİTİK DÜZELTME: Sound modülünün Asset indirme konumunu bulması için gerekli
+func (c *Client) GetAssetLocation(id int64, assetTypeID int32) (string, error) {
+    // BURAYA ORİJİNAL KODUNUZUN GetAssetLocation İÇERİĞİNİ KOYUN
+    return "", nil 
+}
+
+// KRİTİK DÜZELTME: Sound dosyasını yüklemek için gerekli
+func (c *Client) ReuploadSound(body io.Reader, placeID int64) (int64, error) {
+    // BURAYA ORİJİNAL KODUNUZUN ReuploadSound İÇERİĞİNİ KOYUN
+    return 0, nil
 }

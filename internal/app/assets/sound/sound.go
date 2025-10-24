@@ -26,7 +26,6 @@ func Reupload(ctx *context.Context, r *request.Request) {
 	idsToUpload := len(r.IDs)
 	var idsProcessed atomic.Int32
 
-	// filter'ın, develop.GetAssetsInfoResponse tipini beklediği doğrulanmıştır.
 	filter := assetutils.NewFilter(ctx, r, assetTypeID)
 	
 	logger.Println("Reuploading sounds...")
@@ -86,7 +85,8 @@ func Reupload(ctx *context.Context, r *request.Request) {
 			return
 		}
 
-		newID := newID 
+		// HATA ÇÖZÜMÜ: Redundant olan 'newID := newID' satırı KALDIRILDI.
+		
 		newValue := idsProcessed.Add(1)
 		logger.Success(uploaderror.New(int(newValue), idsToUpload, "", assetInfo, newID))
 		resp.AddItem(response.ResponseItem{
@@ -107,12 +107,12 @@ func Reupload(ctx *context.Context, r *request.Request) {
 			
 			// Error Handling
 			if err := res.Error; err != nil {
-				// len() için res.Result.Data hala kullanılıyor, çünkü res.Result struct olduğu için len() alamaz.
+				// len() için res.Result.Data kullanılıyor
 				newBatchError(len(res.Result.Data), "Failed to get assets info", err) 
 				return
 			}
 			
-			// KRİTİK DÜZELTME: filter'ın beklediği tip olan res.Result (struct) gönderildi.
+			// filter'a res.Result (struct) gönderiliyor
 			filteredInfo := filter(res.Result)
 			
 			for _, assetInfo := range filteredInfo {

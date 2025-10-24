@@ -2,7 +2,8 @@ package roblox
 
 import (
 	"errors"
-	"io" // <-- KRİTİK: io import edildi
+	"fmt" // GetAssetLocation metodunda kullanıldı
+	"io" // <-- KRİTİK DÜZELTME: Sound modülünün ihtiyacı olan import
 	"net/http"
 	"strings"
 	"sync"
@@ -72,13 +73,13 @@ func (c *Client) DoRequest(req *http.Request) (*http.Response, error) {
 	return c.httpClient.Do(req)
 }
 
-// KRİTİK DÜZELTME: Sound modülünün Asset indirme konumunu bulması için gerekli
+// KRİTİK DÜZELTME: Sound modülü tarafından çağrılır.
 func (c *Client) GetAssetLocation(id int64, assetTypeID int32) (string, error) {
-    // BURAYA ORİJİNAL KODUNUZUN GetAssetLocation İÇERİĞİNİ KOYUN
-    return "", nil 
+    // Bu, Roblox'ta varlık indirme URL'sinin yaygın formatıdır.
+    return fmt.Sprintf("https://assetdelivery.roblox.com/v1/asset/?id=%d", id), nil
 }
 
-// KRİTİK DÜZELTME: Sound dosyasını yüklemek için gerekli
+// KRİTİK DÜZELTME: Sound dosyasını yüklemek için gereklidir.
 func (c *Client) ReuploadSound(body io.Reader, placeID int64) (int64, error) {
     // BURAYA ORİJİNAL KODUNUZUN ReuploadSound İÇERİĞİNİ KOYUN
     return 0, nil

@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/111222Bomba/Asset-Reuploader/internal/app/assets/animation"
-    // YENİ IMPORT: Sound modülü eklendi
+    // YENİ IMPORT
 	"github.com/111222Bomba/Asset-Reuploader/internal/app/assets/sound" 
 	"github.com/111222Bomba/Asset-Reuploader/internal/app/assets/shared/clientutils"
 	"github.com/111222Bomba/Asset-Reuploader/internal/app/assets/shared/permissions"
@@ -16,7 +16,7 @@ import (
 	"github.com/111222Bomba/Asset-Reuploader/internal/roblox"
 )
 
-// KRİTİK DÜZELTME: Sound modülü assetModules haritasına eklendi
+// KRİTİK DÜZELTME: Sound modülü eklendi
 var assetModules = map[string]func(ctx *context.Context, r *request.Request){
 	"Animation": animation.Reupload,
 	"Sound": sound.Reupload, 

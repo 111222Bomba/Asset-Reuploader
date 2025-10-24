@@ -12,7 +12,7 @@ import (
 	"github.com/111222Bomba/Asset-Reuploader/internal/app/request"
 	"github.com/111222Bomba/Asset-Reuploader/internal/app/response"
 	"github.com/111222Bomba/Asset-Reuploader/internal/retry"
-	"github.com/111222Bomba/Asset-Reuploader/internal/roblox/develop" // KRİTİK DÜZELTME: AssetInfo struct'ı için gerekli
+	"github.com/111222Bomba/Asset-Reuploader/internal/roblox/develop" // KRİTİK DÜZELTME
 )
 
 const assetTypeID int32 = 3 // Sound asset tipi

@@ -26,6 +26,7 @@ func Reupload(ctx *context.Context, r *request.Request) {
 	idsToUpload := len(r.IDs)
 	var idsProcessed atomic.Int32
 
+	// filter'ın, develop.AssetInfo tipinde bir slice (dilim) alması gerekir
 	filter := assetutils.NewFilter(ctx, r, assetTypeID)
 	
 	logger.Println("Reuploading sounds...")
@@ -60,8 +61,9 @@ func Reupload(ctx *context.Context, r *request.Request) {
 		defer assetDataResp.Body.Close()
 
 		// 3. Sound dosyasını Roblox'a yükle
-		// KRİTİK DÜZELTME 1: retry.DoTask yerine retry.Do kullanıldı
-		res := <-retry.Do( 
+		
+		// KRİTİK DÜZELTME 1: retry.Do'nun senkron (çoklu dönüş değerli) olduğunu varsayıyoruz.
+		newID, err := retry.Do( 
 			retry.NewOptions(retry.Tries(3)),
 			func(try int) (int64, error) {
 				pauseController.WaitIfPaused()
@@ -74,19 +76,20 @@ func Reupload(ctx *context.Context, r *request.Request) {
 					if err.Error() == "cookie expired" { 
 						clientutils.GetNewCookie(ctx, r, "cookie expired")
 					}
-					return 0, &retry.ContinueRetry{Err: err}
+					// Hata devam ediyorsa, retry.ContinueRetry ile denemeye devam et.
+					return 0, &retry.ContinueRetry{Err: err} 
 				}
 				return id, nil
 			},
 		)
 
-		if err := res.Error; err != nil {
+		if err != nil { // Final hata kontrolü
 			assetInfo.Name = oldName
 			newUploadError("Failed to upload", assetInfo, err)
 			return
 		}
 
-		newID := res.Result
+		// newID başarıyla alındı
 		newValue := idsProcessed.Add(1)
 		logger.Success(uploaderror.New(int(newValue), idsToUpload, "", assetInfo, newID))
 		resp.AddItem(response.ResponseItem{
@@ -105,13 +108,16 @@ func Reupload(ctx *context.Context, r *request.Request) {
 			defer wg.Done()
 			res := <-task
 			
+			// res.Result'ın artık develop.GetAssetsInfoResponse struct'ı olduğunu biliyoruz.
+			// Error Handling
 			if err := res.Error; err != nil {
-				// KRİTİK DÜZELTME 2: Asset listesine .Data alanı üzerinden erişiliyor.
+				// KRİTİK DÜZELTME 2a: Len için Data alanı kullanılır
 				newBatchError(len(res.Result.Data), "Failed to get assets info", err) 
 				return
 			}
 			
-			// KRİTİK DÜZELTME 3: Asset listesini filtreye geçirmek için .Data kullanıldı
+			// KRİTİK DÜZELTME 2b: Filter'a Data dilimi (slice) geçirilir.
+			// Bu, filter fonksiyonunun GetAssetsInfoResponse yerine []*develop.AssetInfo beklediğini varsayar.
 			filteredInfo := filter(res.Result.Data)
 			
 			for _, assetInfo := range filteredInfo {

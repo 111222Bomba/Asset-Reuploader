@@ -6,17 +6,38 @@ import (
 	"os"
 	"strings"
 
-	"github.com/kartFr/Asset-Reuploader/internal/app/config"
-	"github.com/kartFr/Asset-Reuploader/internal/color"
-	"github.com/kartFr/Asset-Reuploader/internal/console"
-	"github.com/kartFr/Asset-Reuploader/internal/files"
-	"github.com/kartFr/Asset-Reuploader/internal/roblox"
+	"github.com/111222Bomba/Asset-Reuploader/internal/app/config"
+	"github.com/111222Bomba/Asset-Reuploader/internal/color"
+	"github.com/111222Bomba/Asset-Reuploader/internal/console"
+	"github.com/111222Bomba/Asset-Reuploader/internal/files"
+	"github.com/111222Bomba/Asset-Reuploader/internal/roblox"
 )
 
 var (
 	cookieFile = config.Get("cookie_file")
 	port       = config.Get("port")
 )
+
+func getCookie(c *roblox.Client) {
+	color.Info.Print("Enter your .ROBLOSECURITY: ")
+
+	var cookie string
+	if _, err := fmt.Scanln(&cookie); err != nil {
+		log.Fatal(err)
+	}
+
+	if cookie == "" {
+		color.Error.Println("Cookie can't be empty.")
+		getCookie(c)
+		return
+	}
+
+	if err := c.Authenticate(cookie); err != nil {
+		color.Error.Println(err)
+		getCookie(c)
+		return
+	}
+}
 
 func main() {
 	console.ClearScreen()
@@ -48,27 +69,5 @@ func main() {
 	fmt.Println("localhost started on port " + port + ". Waiting to start reuploading.")
 	if err := serve(c); err != nil {
 		log.Fatal(err)
-	}
-}
-
-func getCookie(c *roblox.Client) {
-	for {
-		i, err := console.LongInput("ROBLOSECURITY: ")
-		console.ClearScreen()
-		if err != nil {
-			color.Error.Println(err)
-			continue
-		}
-
-		fmt.Println("Authenticating cookie...")
-		err = c.SetCookie(i)
-		console.ClearScreen()
-		if err != nil {
-			color.Error.Println(err)
-			continue
-		}
-
-		files.Write(cookieFile, i)
-		break
 	}
 }

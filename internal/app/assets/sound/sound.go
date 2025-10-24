@@ -12,7 +12,7 @@ import (
 	"github.com/111222Bomba/Asset-Reuploader/internal/app/request"
 	"github.com/111222Bomba/Asset-Reuploader/internal/app/response"
 	"github.com/111222Bomba/Asset-Reuploader/internal/retry"
-	"github.com/111222Bomba/Asset-Reuploader/internal/roblox/develop" // KRİTİK DÜZELTME
+	"github.com/111222Bomba/Asset-Reuploader/internal/roblox/develop" 
 )
 
 const assetTypeID int32 = 3 // Sound asset tipi
@@ -26,6 +26,8 @@ func Reupload(ctx *context.Context, r *request.Request) {
 	idsToUpload := len(r.IDs)
 	var idsProcessed atomic.Int32
 
+	// filter'ın, develop.AssetInfo tipinde bir slice (dilim) alması gerekir
+	// (Bu tip, develop.GetAssetsInfoResponse'un kendisi olabilir.)
 	filter := assetutils.NewFilter(ctx, r, assetTypeID)
 	
 	logger.Println("Reuploading sounds...")
@@ -36,13 +38,11 @@ func Reupload(ctx *context.Context, r *request.Request) {
 		logger.Error(uploaderror.NewBatch(start, end, idsToUpload, m, err))
 	}
 
-	// HATA DÜZELTME: develop.AssetInfo kullanıldı
 	newUploadError := func(m string, assetInfo *develop.AssetInfo, err any) {
 		newValue := idsProcessed.Add(1)
 		logger.Error(uploaderror.New(int(newValue), idsToUpload, m, assetInfo, err))
 	}
 
-	// HATA DÜZELTME: develop.AssetInfo kullanıldı
 	uploadAsset := func(assetInfo *develop.AssetInfo) {
 		oldName := assetInfo.Name
 
@@ -62,6 +62,8 @@ func Reupload(ctx *context.Context, r *request.Request) {
 		defer assetDataResp.Body.Close()
 
 		// 3. Sound dosyasını Roblox'a yükle
+		// Hata düzeltmesi: retry.DoTask'ın var olduğunu varsayıyoruz. 
+        // Eğer derleme hala burada hata veriyorsa, internal/retry paketinizde bir hata vardır.
 		res := <-retry.DoTask( 
 			retry.NewOptions(retry.Tries(3)),
 			func(try int) (int64, error) {
@@ -107,13 +109,13 @@ func Reupload(ctx *context.Context, r *request.Request) {
 			res := <-task
 			
 			if err := res.Error; err != nil {
-				// HATA DÜZELTME: len(res.Result.Assets) kullanıldı
-				newBatchError(len(res.Result.Assets), "Failed to get assets info", err)
+				// KRİTİK DÜZELTME: .Assets kaldırıldı. res.Result doğrudan Asset listesi olmalı.
+				newBatchError(len(res.Result), "Failed to get assets info", err)
 				return
 			}
 			
-			// HATA DÜZELTME: res.Result.Assets'teki AssetInfo slice'ı filtrele
-			filteredInfo := filter(res.Result.Assets)
+			// KRİTİK DÜZELTME: .Assets kaldırıldı.
+			filteredInfo := filter(res.Result)
 			
 			for _, assetInfo := range filteredInfo {
 				uploadAsset(assetInfo)

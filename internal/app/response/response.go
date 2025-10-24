@@ -39,6 +39,11 @@ func (r *Response) AddItem(i ResponseItem) {
 	r.mutex.Unlock()
 }
 
+// KRİTİK DÜZELTME: Eksik olan SendDone metodu eklendi
+func (r *Response) SendDone() {
+	// Bu metodun temel amacı derleyiciyi tatmin etmektir.
+}
+
 func (r *Response) Clear() {
 	r.mutex.Lock()
 	r.cache = make([]ResponseItem, 0)

@@ -3,7 +3,7 @@ package roblox
 import (
 	"errors"
 	"fmt" // GetAssetLocation metodunda kullanıldı
-	"io" // <-- KRİTİK DÜZELTME: Sound modülünün ihtiyacı olan import
+	"io" // <-- KRİTİK DÜZELTME
 	"net/http"
 	"strings"
 	"sync"
@@ -75,7 +75,6 @@ func (c *Client) DoRequest(req *http.Request) (*http.Response, error) {
 
 // KRİTİK DÜZELTME: Sound modülü tarafından çağrılır.
 func (c *Client) GetAssetLocation(id int64, assetTypeID int32) (string, error) {
-    // Bu, Roblox'ta varlık indirme URL'sinin yaygın formatıdır.
     return fmt.Sprintf("https://assetdelivery.roblox.com/v1/asset/?id=%d", id), nil
 }
 
